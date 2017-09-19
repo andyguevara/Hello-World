@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Blizzard Workflow Manager Dashboard</title>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Polyfills -->
+  <script src="node_modules/core-js/client/shim.min.js"></script>
+
+  <script src="node_modules/zone.js/dist/zone.js"></script>
+  <script src="node_modules/systemjs/dist/system.src.js"></script>
+
+  <script src="systemjs.config.js"></script>
+
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.117.0.min.js"></script>
+
+  <script>
+    System.import('main.js').catch(function (err) { console.error(err); });
+  </script>
+
+  <script>
+    AWS.config.update({
+      region: "us-west-1",
+      endpoint: 'http://dynamodb.us-west-1.amazonaws.com',
+      // accessKeyId default can be used while using the downloadable version of DynamoDB.
+      // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito instead.
+      accessKeyId: "AKIAIZ437VHDXKI3Y2UQ",
+      // secretAccessKey default can be used while using the downloadable version of DynamoDB.
+      // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito instead.
+      secretAccessKey: "1HnujVKGtQ5jWK+iMCsSccjC5KL6fKtNb6I0YtyQ"
+    });
+
+    var docClient = new AWS.DynamoDB.DocumentClient();
+
+    function queryData() {
+      document.getElementById('textarea').innerHTML += "Querying for records:";
+
+      var params = {
+        TableName: "Vod-dev",
+        KeyConditionExpression: "houseId = :id",
+        ExpressionAttributeValues: {
+          ":id": "testDev-sue-9-18-2"
+        }
+      };
+
+      docClient.query(params, function (err, data) {
+        if (err) {
+          document.getElementById('textarea').innerHTML += "Unable to query. Error: " + "\n" + JSON.stringify(err, undefined, 2);
+        } else {
+          document.getElementById('textarea').innerHTML += "\n" + JSON.stringify(data, undefined, 2);
+        }
+      });
+    }
+
+    function scanData() {
+      document.getElementById('textarea').innerHTML += "Scanning table." + "\n";
+
+      var params = {
+        TableName: "Vod-dev",
+      };
+
+      docClient.scan(params, onScan);
+
+      function onScan(err, data) {
+        if (err) {
+          document.getElementById('textarea').innerHTML += "Unable to scan the table: " + "\n" + JSON.stringify(err, undefined, 2);
+        } else {
+          // Print all the movies
+          document.getElementById('textarea').innerHTML += "Scan succeeded. " + "\n";
+          data.Items.forEach(function (record) {
+            document.getElementById('textarea').innerHTML += record.houseId + "\n";
+          });
+
+          if (data.LastEvaluatedKey) {
+            // Continue scanning if we have more movies (per scan 1MB limitation)
+            document.getElementById('textarea').innerHTML += "Scanning for more..." + "\n";
+            params.ExclusiveStartKey = data.LastEvaluatedKey;
+            docClient.scan(params, onScan);
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <bwm-app>Loading...</bwm-app>
+  <input id="queryData" type="button" value="Query" onclick="queryData();" />
+  <input id="scanData" type="button" value="Scan" onclick="scanData();" />
+  <br><br>
+  <textarea readonly id="textarea" style="width:400px; height:800px"></textarea>
+</body>
+
+</html>
